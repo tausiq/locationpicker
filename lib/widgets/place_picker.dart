@@ -3,8 +3,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:location/location.dart';
 import 'package:http/http.dart' as http;
+import 'package:location/location.dart';
 import 'package:place_picker/entities/entities.dart';
 import 'package:place_picker/entities/localization_item.dart';
 import 'package:place_picker/widgets/widgets.dart';
@@ -125,7 +125,7 @@ class PlacePickerState extends State<PlacePicker> {
                 children: <Widget>[
                   SelectPlaceAction(
                       getLocationName(),
-                      () => Navigator.of(context).pop(this.locationResult),
+                          () => Navigator.of(context).pop(this.locationResult),
                       widget.localizationItem!.tapToSelectLocation),
                   Divider(height: 8),
                   Padding(
@@ -136,7 +136,8 @@ class PlacePickerState extends State<PlacePicker> {
                   Expanded(
                     child: ListView(
                       children: nearbyPlaces
-                          .map((it) => NearbyPlaceItem(
+                          .map((it) =>
+                          NearbyPlaceItem(
                               it, () => moveToLocation(it.latLng!)))
                           .toList(),
                     ),
@@ -188,31 +189,32 @@ class PlacePickerState extends State<PlacePicker> {
     final size = renderBox.size;
 
     final RenderBox? appBarBox =
-        this.appBarKey.currentContext!.findRenderObject() as RenderBox?;
+    this.appBarKey.currentContext!.findRenderObject() as RenderBox?;
 
     this.overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: appBarBox!.size.height,
-        width: size.width,
-        child: Material(
-          elevation: 1,
-          child: Container(
-            padding: EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-            child: Row(
-              children: <Widget>[
-                SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(strokeWidth: 3)),
-                SizedBox(width: 24),
-                Expanded(
-                    child: Text(widget.localizationItem!.findingPlace,
-                        style: TextStyle(fontSize: 16)))
-              ],
+      builder: (context) =>
+          Positioned(
+            top: appBarBox!.size.height,
+            width: size.width,
+            child: Material(
+              elevation: 1,
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                child: Row(
+                  children: <Widget>[
+                    SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(strokeWidth: 3)),
+                    SizedBox(width: 24),
+                    Expanded(
+                        child: Text(widget.localizationItem!.findingPlace,
+                            style: TextStyle(fontSize: 16)))
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
     );
 
     Overlay.of(context)!.insert(this.overlayEntry!);
@@ -305,7 +307,8 @@ class PlacePickerState extends State<PlacePicker> {
       }
 
       final location = responseJson['result']['geometry']['location'];
-      moveToLocation(LatLng(location['lat'], location['lng']));
+      final result = responseJson['result'];
+      moveToLocation(LatLng(location['lat'], location['lng']), result: result);
     } catch (e) {
       print(e);
     }
@@ -317,16 +320,19 @@ class PlacePickerState extends State<PlacePicker> {
     Size size = renderBox.size;
 
     final RenderBox? appBarBox =
-        this.appBarKey.currentContext!.findRenderObject() as RenderBox?;
+    this.appBarKey.currentContext!.findRenderObject() as RenderBox?;
 
     clearOverlay();
 
     this.overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        width: size.width,
-        top: appBarBox!.size.height,
-        child: Material(elevation: 1, child: Column(children: suggestions)),
-      ),
+      builder: (context) =>
+          Positioned(
+            width: size.width,
+            top: appBarBox!.size.height,
+            child: Material(elevation: 1, child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: suggestions)),
+          ),
     );
 
     Overlay.of(context)!.insert(this.overlayEntry!);
@@ -368,8 +374,8 @@ class PlacePickerState extends State<PlacePicker> {
     try {
       final url = Uri.parse(
           "https://maps.googleapis.com/maps/api/place/nearbysearch/json?"
-          "key=${widget.apiKey}&location=${latLng.latitude},${latLng.longitude}"
-          "&radius=150&language=${widget.localizationItem!.languageCode}");
+              "key=${widget.apiKey}&location=${latLng.latitude},${latLng.longitude}"
+              "&radius=150&language=${widget.localizationItem!.languageCode}");
 
       final response = await http.get(url);
 
@@ -428,80 +434,7 @@ class PlacePickerState extends State<PlacePicker> {
 
       final result = responseJson['results'][0];
 
-      setState(() {
-        String? name,
-            locality,
-            postalCode,
-            country,
-            administrativeAreaLevel1,
-            administrativeAreaLevel2,
-            city,
-            subLocalityLevel1,
-            subLocalityLevel2;
-        bool isOnStreet = false;
-        if (result['address_components'] is List<dynamic> &&
-            result['address_components'].length != null &&
-            result['address_components'].length > 0) {
-          for (var i = 0; i < result['address_components'].length; i++) {
-            var tmp = result['address_components'][i];
-            var types = tmp["types"] as List<dynamic>?;
-            var shortName = tmp['short_name'];
-            if (types == null) {
-              continue;
-            }
-            if (i == 0) {
-              // [street_number]
-              name = shortName;
-              isOnStreet = types.contains('street_number');
-              // other index 0 types
-              // [establishment, point_of_interest, subway_station, transit_station]
-              // [premise]
-              // [route]
-            } else if (i == 1 && isOnStreet) {
-              if (types.contains('route')) {
-                name = (name ?? "") + ", $shortName";
-              }
-            } else {
-              if (types.contains("sublocality_level_1")) {
-                subLocalityLevel1 = shortName;
-              } else if (types.contains("sublocality_level_2")) {
-                subLocalityLevel2 = shortName;
-              } else if (types.contains("locality")) {
-                locality = shortName;
-              } else if (types.contains("administrative_area_level_2")) {
-                administrativeAreaLevel2 = shortName;
-              } else if (types.contains("administrative_area_level_1")) {
-                administrativeAreaLevel1 = shortName;
-              } else if (types.contains("country")) {
-                country = shortName;
-              } else if (types.contains('postal_code')) {
-                postalCode = shortName;
-              }
-            }
-          }
-        }
-        locality = locality ?? administrativeAreaLevel1;
-        city = locality;
-        this.locationResult = LocationResult()
-          ..name = name
-          ..locality = locality
-          ..latLng = latLng
-          ..formattedAddress = result['formatted_address']
-          ..placeId = result['place_id']
-          ..postalCode = postalCode
-          ..country = AddressComponent(name: country, shortName: country)
-          ..administrativeAreaLevel1 = AddressComponent(
-              name: administrativeAreaLevel1,
-              shortName: administrativeAreaLevel1)
-          ..administrativeAreaLevel2 = AddressComponent(
-              name: administrativeAreaLevel2,
-              shortName: administrativeAreaLevel2)
-          ..city = AddressComponent(name: city, shortName: city)
-          ..subLocalityLevel1 = AddressComponent(
-              name: subLocalityLevel1, shortName: subLocalityLevel1)
-          ..subLocalityLevel2 = AddressComponent(
-              name: subLocalityLevel2, shortName: subLocalityLevel2);
-      });
+      updateState(latLng, result);
     } catch (e) {
       print(e);
     }
@@ -509,7 +442,7 @@ class PlacePickerState extends State<PlacePicker> {
 
   /// Moves the camera to the provided location and updates other UI features to
   /// match the location.
-  void moveToLocation(LatLng latLng) {
+  void moveToLocation(LatLng latLng, {result}) {
     this.mapController.future.then((controller) {
       controller.animateCamera(
         CameraUpdate.newCameraPosition(
@@ -519,7 +452,11 @@ class PlacePickerState extends State<PlacePicker> {
 
     setMarker(latLng);
 
-    reverseGeocodeLatLng(latLng);
+    if (result == null) {
+      reverseGeocodeLatLng(latLng);
+    } else {
+      updateState(latLng, result);
+    }
 
     getNearbyPlaces(latLng);
   }
@@ -536,6 +473,83 @@ class PlacePickerState extends State<PlacePicker> {
     }).catchError((error) {
       // TODO: Handle the exception here
       print(error);
+    });
+  }
+
+  void updateState(LatLng latLng, result) {
+    setState(() {
+      String? name,
+          locality,
+          postalCode,
+          country,
+          administrativeAreaLevel1,
+          administrativeAreaLevel2,
+          city,
+          subLocalityLevel1,
+          subLocalityLevel2;
+      bool isOnStreet = false;
+      if (result['address_components'] is List<dynamic> &&
+          result['address_components'].length != null &&
+          result['address_components'].length > 0) {
+        for (var i = 0; i < result['address_components'].length; i++) {
+          var tmp = result['address_components'][i];
+          var types = tmp["types"] as List<dynamic>?;
+          var shortName = tmp['short_name'];
+          if (types == null) {
+            continue;
+          }
+          if (i == 0) {
+            // [street_number]
+            name = shortName;
+            isOnStreet = types.contains('street_number');
+            // other index 0 types
+            // [establishment, point_of_interest, subway_station, transit_station]
+            // [premise]
+            // [route]
+          } else if (i == 1 && isOnStreet) {
+            if (types.contains('route')) {
+              name = (name ?? "") + ", $shortName";
+            }
+          } else {
+            if (types.contains("sublocality_level_1")) {
+              subLocalityLevel1 = shortName;
+            } else if (types.contains("sublocality_level_2")) {
+              subLocalityLevel2 = shortName;
+            } else if (types.contains("locality")) {
+              locality = shortName;
+            } else if (types.contains("administrative_area_level_2")) {
+              administrativeAreaLevel2 = shortName;
+            } else if (types.contains("administrative_area_level_1")) {
+              administrativeAreaLevel1 = shortName;
+            } else if (types.contains("country")) {
+              country = shortName;
+            } else if (types.contains('postal_code')) {
+              postalCode = shortName;
+            }
+          }
+        }
+      }
+      locality = locality ?? administrativeAreaLevel1;
+      city = locality;
+      this.locationResult = LocationResult()
+        ..name = name
+        ..locality = locality
+        ..latLng = latLng
+        ..formattedAddress = result['formatted_address']
+        ..placeId = result['place_id']
+        ..postalCode = postalCode
+        ..country = AddressComponent(name: country, shortName: country)
+        ..administrativeAreaLevel1 = AddressComponent(
+            name: administrativeAreaLevel1,
+            shortName: administrativeAreaLevel1)
+        ..administrativeAreaLevel2 = AddressComponent(
+            name: administrativeAreaLevel2,
+            shortName: administrativeAreaLevel2)
+        ..city = AddressComponent(name: city, shortName: city)
+        ..subLocalityLevel1 = AddressComponent(
+            name: subLocalityLevel1, shortName: subLocalityLevel1)
+        ..subLocalityLevel2 = AddressComponent(
+            name: subLocalityLevel2, shortName: subLocalityLevel2);
     });
   }
 }
